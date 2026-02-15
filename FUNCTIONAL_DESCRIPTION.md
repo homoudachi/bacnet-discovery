@@ -31,10 +31,20 @@ The BACnet Discovery Tool is a terminal-based utility designed for Building Mana
 
 ### 3.1 Network Layer (`network.rs`)
 - Manages UDP socket creation and configuration.
-- Handles `SO_REUSEPORT` for Linux.
+- Handles `SO_REUSEPORT` for Linux to allow multiple BACnet tools to run simultaneously.
 - Abstraction for interface selection.
 
-### 3.2 Protocol Layer (`bacnet.rs`)
+### 3.2 Dual-Socket Design
+To solve reliability issues with unicast responses on shared ports, the application uses two distinct sockets:
+1.  **Discovery Socket (Bound to 47808)**:
+    -   **Purpose**: Handling Broadcast traffic (`Who-Is`, `I-Am`).
+    -   **Configuration**: Uses `SO_REUSEPORT`.
+    -   **Why**: BACnet devices expect discovery traffic on the standard port.
+2.  **Client Socket (Bound to Random Port)**:
+    -   **Purpose**: Handling Unicast Confirmed Requests (`ReadProperty`, `ReadPropertyMultiple`).
+    -   **Why**: When sending a request from a specific, unique ephemeral port, the OS guarantees that the response is delivered *only* to that socket. This eliminates race conditions where responses might be "stolen" by other BACnet tools running on the same machine.
+
+### 3.3 Protocol Layer (`bacnet.rs`)
 - **Encoding/Decoding**: Maps Rust structs to raw BACnet byte streams (APDU/NPDU/BVLL).
 - **Service Handlers**:
   - `send_whois_to`: Constructs discovery broadcasts.
@@ -42,14 +52,14 @@ The BACnet Discovery Tool is a terminal-based utility designed for Building Mana
   - `read_present_value`: Handles single-point reads.
 - **Concurrency**: Uses `tokio` channels to bridge the synchronous/blocking nature of some BACnet request-response patterns with the async application runtime.
 
-### 3.3 Application State (`app.rs`)
+### 3.4 Application State (`app.rs`)
 - Uses a `Mutex`-protected shared state pattern (`Arc<Mutex<App>>`).
 - **View States**:
   - `InterfaceSelect`: Initial boot screen.
   - `DeviceList`: Results of the Who-Is scan.
   - `ObjectList`: Detailed view of a specific device.
 
-### 3.4 User Interface (`ui.rs`)
+### 3.5 User Interface (`ui.rs`)
 - Built with `ratatui` (TUI library).
 - Renders widgets based on the current `ViewState`.
 - layout logic is decoupled from business logic.
@@ -68,7 +78,7 @@ The BACnet Discovery Tool is a terminal-based utility designed for Building Mana
 1. User selects a device and presses `Enter`.
 2. View changes to `ObjectList`.
 3. User presses `d` to scan points.
-4. App initiates `ReadPropertyMultiple` sequence.
+4. App initiates `ReadPropertyMultiple` sequence using the **Client Socket**.
 5. `Object_List` is retrieved.
 6. Objects are populated in the table.
 7. Polling task registers these new points and begins cyclic reading.

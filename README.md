@@ -1,17 +1,18 @@
 # BACnet Discovery Tool
 
-A diagnostic utility for discovering and inspecting BACnet/IP devices on a local network.
+A professional-grade, terminal-based diagnostic utility for discovering, inspecting, and monitoring BACnet/IP devices.
 
 ## Features
 
-- **Device Discovery**: Send `Who-Is` broadcasts to find active devices.
-- **Point Discovery**: Inspect a device to list its BACnet objects (Analog Inputs, Binary Values, etc.).
-- **TUI Interface**: Interactive terminal interface for easy navigation.
-- **Shared Socket**: Uses `SO_REUSEPORT` to coexist with other BACnet apps on the same machine.
+- **Robust Device Discovery**: Uses targeted `Who-Is` broadcasts on selected interfaces to find devices without flooding the network.
+- **Deep Inspection**: Drill down into devices to discover objects (Points) and their properties.
+- **Live Polling**: Automatically polls discovered points for real-time value updates.
+- **Dual-Socket Architecture**: Advanced networking stack allows reliable communication even when sharing the BACnet port with other applications (via `SO_REUSEPORT`).
+- **TUI Interface**: A fast, keyboard-driven terminal interface built with `ratatui`.
 
 ## Installation
 
-Ensure you have Rust installed.
+Ensure you have [Rust](https://www.rust-lang.org/) installed.
 
 ```bash
 git clone https://github.com/homoudachi/bacnet-discovery.git
@@ -21,28 +22,65 @@ cargo build --release
 
 ## Usage
 
-### Discovery Tool
+### 1. Start the Tool
 ```bash
 cargo run --release
 ```
-- **'d'**: Trigger device discovery (broadcast Who-Is).
-- **'Enter'**: Drill down into a selected device to view its points.
-- **'d' (in device view)**: Discover points (objects) for the selected device.
-- **'Esc'**: Go back to the device list.
-- **'q'**: Quit.
 
-### Diagnostics & Testing
+### 2. Select Network Interface
+Use the **Up/Down** arrows to select the network interface connected to your BACnet network (e.g., `eth0`, `wlan0`, or `127.0.0.1` for local testing) and press **Enter**.
+
+### 3. Discover Devices
+Press **'d'** to broadcast a `Who-Is` request. Discovered devices will appear in the list.
+
+### 4. Inspect & Monitor
+- Select a device and press **Enter** to view its details.
+- Press **'d'** again to discover its objects (Points).
+- The tool will automatically poll these points for live updates.
+
+### Controls
+| Key | Action |
+| --- | --- |
+| `d` | Discover Devices / Discover Points |
+| `Enter` | Select Interface / Drill-down into Device |
+| `Esc` | Go Back / Exit View |
+| `r` | Refresh / Clear List |
+| `q` | Quit |
+
+## Diagnostics & Testing
+
+The project includes a suite of diagnostic tools for verifying your network environment:
+
+### Virtual Responder
+Simulates a BACnet device on your machine. Useful for testing the tool without physical hardware.
 ```bash
-# Run a virtual BACnet device for local testing
-cargo run --bin responder [device-id]
+cargo run --bin responder
+```
 
-# Analyze raw BACnet traffic
+### Network Sniffer
+Captures and decodes raw BACnet/IP traffic on port 47808.
+```bash
 cargo run --bin sniffer
+```
 
-# Check network capabilities
+### Port Diagnostics
+Checks if the BACnet port is available or blocked.
+```bash
 cargo run --bin diagnostics
 ```
 
+### Headless Scan
+Runs a discovery scan without the UI, logging results to stdout.
+```bash
+cargo run --bin headless-scan
+```
+
+## Architecture
+
+This tool uses a sophisticated **Dual-Socket Architecture** to ensure reliability:
+1. **Discovery Socket (47808)**: Listens for broadcast traffic (`I-Am`, `Who-Is`). Shares the port using `SO_REUSEPORT`.
+2. **Client Socket (Random Port)**: Handles unicast confirmed requests (`ReadProperty`, `ReadPropertyMultiple`). This ensures responses are routed correctly by the OS, avoiding race conditions common in shared-port environments.
+
 ## License
 
-MIT / Apache-2.0
+Dual-licensed under MIT and Apache-2.0.

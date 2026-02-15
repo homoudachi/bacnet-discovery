@@ -1,4 +1,14 @@
-[2m2026-02-15T10:49:29.277040Z[0m [32m INFO[0m [2mbacnet_discovery[0m[2m:[0m Starting BACnet Discovery Tool
-[2m2026-02-15T10:49:30.564522Z[0m [34mDEBUG[0m [2mbacnet_discovery::network[0m[2m:[0m Creating shared socket on port 47808
-[2m2026-02-15T10:49:31.334097Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:49:35.524817Z[0m [32m INFO[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Reading object list for device 1223232 at 192.168.1.174:47808
+[2m2026-02-15T11:02:49.324452Z[0m [32m INFO[0m [2mbacnet_discovery[0m[2m:[0m Starting BACnet Discovery Tool
+[2m2026-02-15T11:02:51.238939Z[0m [34mDEBUG[0m [2mbacnet_discovery::network[0m[2m:[0m Creating shared socket on port 47808
+[2m2026-02-15T11:02:51.933209Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T11:02:58.898129Z[0m [32m INFO[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Reading object list for device 123456 at 192.168.1.106:47808 (Invoke ID: 1)
+[2m2026-02-15T11:02:58.903548Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Received RPM response: 31 bytes
+[2m2026-02-15T11:02:58.903579Z[0m [32m INFO[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Discovered 3 objects for device 123456
+[2m2026-02-15T11:03:01.241278Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Polling Present_Value for AnalogInput:1 at 192.168.1.106:47808 (Invoke ID: 2)
+[2m2026-02-15T11:03:01.347323Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Polling Present_Value for BinaryInput:1 at 192.168.1.106:47808 (Invoke ID: 3)
+[2m2026-02-15T11:03:01.451258Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Polling Present_Value for AnalogValue:1 at 192.168.1.106:47808 (Invoke ID: 4)
+[2m2026-02-15T11:03:06.556448Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Polling Present_Value for AnalogInput:1 at 192.168.1.106:47808 (Invoke ID: 5)
+[2m2026-02-15T11:03:06.666281Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Polling Present_Value for BinaryInput:1 at 192.168.1.106:47808 (Invoke ID: 6)
+[2m2026-02-15T11:03:06.771266Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Polling Present_Value for AnalogValue:1 at 192.168.1.106:47808 (Invoke ID: 7)
+[2m2026-02-15T11:03:11.878263Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Polling Present_Value for AnalogInput:1 at 192.168.1.106:47808 (Invoke ID: 8)
+[2m2026-02-15T11:03:11.983256Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Polling Present_Value for BinaryInput:1 at 192.168.1.106:47808 (Invoke ID: 9)
