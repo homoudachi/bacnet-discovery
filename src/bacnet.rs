@@ -107,14 +107,12 @@ pub fn process_response(data: &[u8], source: SocketAddr) -> Option<DiscoveredDev
 pub fn read_device_objects(socket: &UdpSocket, addr: SocketAddr, device_id: u32) -> Result<Vec<BacnetObject>> {
     debug!("Reading object list for device {}", device_id);
     
-    // Read Property 76 (Object_List) of the Device object
     let device_obj = ObjectIdentifier::new(ObjectType::Device, device_id);
     let prop_ref = PropertyReference::new(76); // Object_List
     let read_spec = ReadAccessSpecification::new(device_obj, vec![prop_ref]);
     let rpm_request = ReadPropertyMultipleRequest::new(vec![read_spec]);
 
     let mut service_data = Vec::new();
-    // Simplified encoding for RPM request as per example
     encode_rpm_request_into(&rpm_request, &mut service_data)?;
 
     let response = send_confirmed_request(
@@ -125,11 +123,10 @@ pub fn read_device_objects(socket: &UdpSocket, addr: SocketAddr, device_id: u32)
         &service_data
     )?;
 
-    // Parse object identifiers from response
     let mut objects = Vec::new();
     let mut pos = 0;
     while pos + 5 <= response.len() {
-        if response[pos] == 0xC4 { // Application tag for ObjectIdentifier
+        if response[pos] == 0xC4 {
             pos += 1;
             let bytes = [response[pos], response[pos+1], response[pos+2], response[pos+3]];
             let encoded = u32::from_be_bytes(bytes);
@@ -140,8 +137,8 @@ pub fn read_device_objects(socket: &UdpSocket, addr: SocketAddr, device_id: u32)
                 if ot != ObjectType::Device {
                     objects.push(BacnetObject {
                         id: ObjectIdentifier::new(ot, instance),
-                        name: format!("Object {}:{}", obj_type, instance),
-                        present_value: "Unknown".to_string(),
+                        name: format!("{:?}:{}", ot, instance),
+                        present_value: "N/A".to_string(),
                         units: "".to_string(),
                         last_updated: Instant::now(),
                     });
@@ -154,6 +151,53 @@ pub fn read_device_objects(socket: &UdpSocket, addr: SocketAddr, device_id: u32)
     }
 
     Ok(objects)
+}
+
+pub fn read_present_value(socket: &UdpSocket, addr: SocketAddr, obj: ObjectIdentifier) -> Result<String> {
+    // Read Property 85 (Present_Value)
+    let mut service_data = vec![0x09, 0x55]; // Context tag 1 (propertyIdentifier), length 1, value 85
+    
+    // Wrapped in ReadProperty (Service 12)
+    let mut apdu_service_data = vec![0x0C]; // Context tag 0 (objectIdentifier), length 4
+    let encoded_id = ((obj.object_type as u32) << 22) | (obj.instance & 0x3FFFFF);
+    apdu_service_data.extend_from_slice(&encoded_id.to_be_bytes());
+    apdu_service_data.extend_from_slice(&service_data);
+
+    let response = send_confirmed_request(
+        socket, 
+        addr, 
+        2, 
+        ConfirmedServiceChoice::ReadProperty, 
+        &apdu_service_data
+    )?;
+
+    // Parse the value from response (simplified)
+    if response.len() >= 3 && response[0] == 0x2E { // Opening tag 3 (propertyValue)
+        let val_data = &response[1..response.len()-1];
+        if !val_data.is_empty() {
+            match val_data[0] {
+                0x44 => { // Real
+                    if val_data.len() >= 5 {
+                        let bytes = [val_data[1], val_data[2], val_data[3], val_data[4]];
+                        return Ok(format!("{:.2}", f32::from_be_bytes(bytes)));
+                    }
+                }
+                0x11 => { // Boolean
+                    if val_data.len() >= 2 {
+                        return Ok(if val_data[1] != 0 { "Active".to_string() } else { "Inactive".to_string() });
+                    }
+                }
+                0x21 => { // Unsigned
+                    if val_data.len() >= 2 {
+                        return Ok(val_data[1].to_string());
+                    }
+                }
+                _ => return Ok(format!("Tag 0x{:02X}", val_data[0])),
+            }
+        }
+    }
+
+    Ok("N/A".to_string())
 }
 
 fn send_confirmed_request(
