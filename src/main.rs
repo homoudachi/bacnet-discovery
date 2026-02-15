@@ -10,13 +10,13 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
-use std::{io, net::UdpSocket, sync::Arc, time::Duration};
-use tokio::sync::mpsc;
-use tracing::{info, error, warn};
+use std::{collections::HashMap, io, net::UdpSocket, sync::{Arc, Mutex}, time::Duration};
+use tokio::sync::{mpsc, oneshot};
+use tracing::{info, error};
 
 use crate::app::{App, ViewState};
 use crate::network::create_shared_socket;
-use crate::bacnet::{send_whois_to, process_response, read_device_objects, read_present_value, get_interface_broadcast};
+use crate::bacnet::{send_whois_to, process_response, read_device_objects, read_present_value, get_interface_broadcast, parse_confirmed_response};
 
 enum AppEvent {
     Input(Event),
@@ -45,8 +45,19 @@ async fn main() -> Result<()> {
 
     let mut app = App::new();
     let (tx, mut rx) = mpsc::channel(100);
+    
+    // Map to store pending confirmed request responders
+    let pending_requests: Arc<Mutex<HashMap<u8, oneshot::Sender<Vec<u8>>>>> = Arc::new(Mutex::new(HashMap::new()));
+    let (tx_register, mut rx_register) = mpsc::channel::<(u8, oneshot::Sender<Vec<u8>>)>(100);
 
-    // Initial dummy socket, will be replaced once interface is selected
+    // Request Registration Task
+    let pending_requests_reg = Arc::clone(&pending_requests);
+    tokio::spawn(async move {
+        while let Some((invoke_id, tx_res)) = rx_register.recv().await {
+            pending_requests_reg.lock().unwrap().insert(invoke_id, tx_res);
+        }
+    });
+
     let mut socket: Option<Arc<UdpSocket>> = None;
 
     // Input thread
@@ -76,26 +87,33 @@ async fn main() -> Result<()> {
                         if let ViewState::InterfaceSelect = app.view_state {
                             app.select_interface();
                             if let Some(idx) = app.selected_interface_index {
-                                let iface = &app.interfaces[idx];
-                                let bind_ip = iface.addr.ip();
-                                
-                                // Create socket bound to specific interface
+                                let _iface = &app.interfaces[idx];
                                 match create_shared_socket(47808) {
                                     Ok(s) => {
                                         let s_arc = Arc::new(s);
                                         socket = Some(Arc::clone(&s_arc));
                                         
-                                        // Start receiver for this socket
+                                        // Unified Receiver Task
                                         let tx_recv = tx.clone();
                                         let s_recv = Arc::clone(&s_arc);
+                                        let pending_recv = Arc::clone(&pending_requests);
                                         if let Some(h) = receiver_handle.take() { h.abort(); }
                                         receiver_handle = Some(tokio::spawn(async move {
                                             let mut buf = [0u8; 1500];
                                             loop {
                                                 match s_recv.recv_from(&mut buf) {
                                                     Ok((len, addr)) => {
-                                                        if let Some(device) = process_response(&buf[..len], addr) {
+                                                        let data = &buf[..len];
+                                                        // 1. Check for I-Am
+                                                        if let Some(device) = process_response(data, addr) {
                                                             let _ = tx_recv.send(AppEvent::DeviceDiscovered(device)).await;
+                                                        } 
+                                                        // 2. Check for Confirmed Response
+                                                        else if let Some((invoke_id, service_data)) = parse_confirmed_response(data) {
+                                                            let mut map = pending_recv.lock().unwrap();
+                                                            if let Some(tx_res) = map.remove(&invoke_id) {
+                                                                let _ = tx_res.send(service_data);
+                                                            }
                                                         }
                                                     }
                                                     Err(_) => { tokio::task::yield_now().await; }
@@ -108,6 +126,7 @@ async fn main() -> Result<()> {
                                         let s_poll = Arc::clone(&s_arc);
                                         let devices_poll = Arc::clone(&app.devices);
                                         let objects_poll = Arc::clone(&app.device_objects);
+                                        let tx_reg_poll = tx_register.clone();
                                         if let Some(h) = polling_handle.take() { h.abort(); }
                                         polling_handle = Some(tokio::spawn(async move {
                                             loop {
@@ -117,22 +136,17 @@ async fn main() -> Result<()> {
                                                 for (device_id, points) in objects {
                                                     if let Some(device) = devices.get(&device_id) {
                                                         for point in points {
-                                                            if let Ok(val) = read_present_value(&s_poll, device.address, point.id) {
+                                                            if let Ok(val) = read_present_value(&s_poll, device.address, point.id, &tx_reg_poll).await {
                                                                 let _ = tx_poll.send(AppEvent::PointUpdated(device_id, point.id, val)).await;
                                                             }
-                                                            tokio::time::sleep(Duration::from_millis(50)).await;
+                                                            tokio::time::sleep(Duration::from_millis(100)).await;
                                                         }
                                                     }
                                                 }
                                             }
                                         }));
-
-                                        info!("Interface {} selected, socket bound to {}", iface.name, bind_ip);
                                     }
-                                    Err(e) => {
-                                        error!("Failed to bind to interface: {}", e);
-                                        app.status_message = format!("Error: {}", e);
-                                    }
+                                    Err(e) => { app.status_message = format!("Error: {}", e); }
                                 }
                             }
                         } else {
@@ -149,12 +163,8 @@ async fn main() -> Result<()> {
                                     let tx_status = tx.clone();
                                     let iface = app.interfaces[app.selected_interface_index.unwrap()].clone();
                                     tokio::spawn(async move {
-                                        let broadcast_addr = get_interface_broadcast(&iface)
-                                            .unwrap_or_else(|| "255.255.255.255:47808".parse().unwrap());
-                                        info!("Sending Who-Is to {}", broadcast_addr);
-                                        if let Err(e) = send_whois_to(&s_send, broadcast_addr) {
-                                            error!("Discovery failed: {}", e);
-                                        }
+                                        let broadcast_addr = get_interface_broadcast(&iface).unwrap_or_else(|| "255.255.255.255:47808".parse().unwrap());
+                                        if let Err(e) = send_whois_to(&s_send, broadcast_addr) { error!("Discovery failed: {}", e); }
                                         tokio::time::sleep(Duration::from_secs(3)).await;
                                         let _ = tx_status.send(AppEvent::StatusUpdate("Scan complete.".to_string())).await;
                                     });
@@ -165,15 +175,11 @@ async fn main() -> Result<()> {
                                         app.status_message = format!("Discovering points for device {}...", device_id);
                                         let s_points = Arc::clone(s);
                                         let tx_points = tx.clone();
+                                        let tx_reg_points = tx_register.clone();
                                         tokio::spawn(async move {
-                                            match read_device_objects(&s_points, device.address, device_id) {
-                                                Ok(points) => {
-                                                    let _ = tx_points.send(AppEvent::PointsDiscovered(device_id, points)).await;
-                                                }
-                                                Err(e) => {
-                                                    error!("Point discovery failed: {}", e);
-                                                    let _ = tx_points.send(AppEvent::StatusUpdate(format!("Error: {}", e))).await;
-                                                }
+                                            match read_device_objects(&s_points, device.address, device_id, &tx_reg_points).await {
+                                                Ok(points) => { let _ = tx_points.send(AppEvent::PointsDiscovered(device_id, points)).await; }
+                                                Err(e) => { let _ = tx_points.send(AppEvent::StatusUpdate(format!("Error: {}", e))).await; }
                                             }
                                         });
                                     }

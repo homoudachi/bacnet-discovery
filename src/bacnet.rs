@@ -11,7 +11,7 @@ use bacnet_rs::{
 use std::net::{SocketAddr, IpAddr, UdpSocket};
 use std::time::{Duration, Instant};
 use anyhow::{Result, anyhow};
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 use crate::app::BacnetObject;
 
 #[derive(Debug, Clone)]
@@ -40,7 +40,6 @@ pub fn send_whois_to(socket: &UdpSocket, dest: SocketAddr) -> Result<()> {
     let mut message = npdu_buffer;
     message.extend_from_slice(&apdu);
 
-    // Determine BVLC function based on destination
     let is_broadcast = dest.ip().is_unspecified() || dest.ip().is_multicast() || dest.ip().to_string().ends_with(".255") || dest.ip().to_string() == "255.255.255.255";
     let bvlc_func = if is_broadcast { 0x0B } else { 0x0A };
 
@@ -107,8 +106,13 @@ pub fn process_response(data: &[u8], source: SocketAddr) -> Option<DiscoveredDev
     }
 }
 
-pub fn read_device_objects(socket: &UdpSocket, addr: SocketAddr, device_id: u32) -> Result<Vec<BacnetObject>> {
-    debug!("Reading object list for device {}", device_id);
+pub async fn read_device_objects(
+    socket: &UdpSocket, 
+    addr: SocketAddr, 
+    device_id: u32,
+    tx_request: &tokio::sync::mpsc::Sender<(u8, tokio::sync::oneshot::Sender<Vec<u8>>)>
+) -> Result<Vec<BacnetObject>> {
+    info!("Reading object list for device {} at {}", device_id, addr);
     
     let device_obj = ObjectIdentifier::new(ObjectType::Device, device_id);
     let prop_ref = PropertyReference::new(76); // Object_List
@@ -118,13 +122,16 @@ pub fn read_device_objects(socket: &UdpSocket, addr: SocketAddr, device_id: u32)
     let mut service_data = Vec::new();
     encode_rpm_request_into(&rpm_request, &mut service_data)?;
 
-    let response = send_confirmed_request(
+    let response = send_confirmed_request_async(
         socket, 
         addr, 
         1, 
         ConfirmedServiceChoice::ReadPropertyMultiple, 
-        &service_data
-    )?;
+        &service_data,
+        tx_request
+    ).await?;
+
+    debug!("Received RPM response: {} bytes", response.len());
 
     let mut objects = Vec::new();
     let mut pos = 0;
@@ -153,60 +160,77 @@ pub fn read_device_objects(socket: &UdpSocket, addr: SocketAddr, device_id: u32)
         }
     }
 
+    info!("Discovered {} objects for device {}", objects.len(), device_id);
     Ok(objects)
 }
 
-pub fn read_present_value(socket: &UdpSocket, addr: SocketAddr, obj: ObjectIdentifier) -> Result<String> {
-    let service_data = vec![0x09, 0x55]; // Context tag 1 (propertyIdentifier), length 1, value 85
+pub async fn read_present_value(
+    socket: &UdpSocket, 
+    addr: SocketAddr, 
+    obj: ObjectIdentifier,
+    tx_request: &tokio::sync::mpsc::Sender<(u8, tokio::sync::oneshot::Sender<Vec<u8>>)>
+) -> Result<String> {
+    debug!("Polling Present_Value for {:?}:{} at {}", obj.object_type, obj.instance, addr);
+    let service_data = vec![0x09, 0x55];
     
-    let mut apdu_service_data = vec![0x0C]; // Context tag 0 (objectIdentifier), length 4
+    let mut apdu_service_data = vec![0x0C];
     let encoded_id = ((obj.object_type as u32) << 22) | (obj.instance & 0x3FFFFF);
     apdu_service_data.extend_from_slice(&encoded_id.to_be_bytes());
     apdu_service_data.extend_from_slice(&service_data);
 
-    let response = send_confirmed_request(
+    let response = send_confirmed_request_async(
         socket, 
         addr, 
         2, 
         ConfirmedServiceChoice::ReadProperty, 
-        &apdu_service_data
-    )?;
+        &apdu_service_data,
+        tx_request
+    ).await?;
 
-    if response.len() >= 3 && response[0] == 0x2E {
-        let val_data = &response[1..response.len()-1];
-        if !val_data.is_empty() {
-            match val_data[0] {
-                0x44 => {
-                    if val_data.len() >= 5 {
-                        let bytes = [val_data[1], val_data[2], val_data[3], val_data[4]];
-                        return Ok(format!("{:.2}", f32::from_be_bytes(bytes)));
+    let mut pos = 0;
+    while pos < response.len() {
+        if response[pos] == 0x3E {
+            let val_data = &response[pos+1..];
+            if !val_data.is_empty() {
+                match val_data[0] {
+                    0x44 => {
+                        if val_data.len() >= 5 {
+                            let bytes = [val_data[1], val_data[2], val_data[3], val_data[4]];
+                            return Ok(format!("{:.2}", f32::from_be_bytes(bytes)));
+                        }
                     }
-                }
-                0x11 => {
-                    if val_data.len() >= 2 {
-                        return Ok(if val_data[1] != 0 { "Active".to_string() } else { "Inactive".to_string() });
+                    0x11 => {
+                        if val_data.len() >= 2 {
+                            return Ok(if val_data[1] != 0 { "Active".to_string() } else { "Inactive".to_string() });
+                        }
                     }
-                }
-                0x21 => {
-                    if val_data.len() >= 2 {
-                        return Ok(val_data[1].to_string());
+                    0x21 => {
+                        if val_data.len() >= 2 {
+                            return Ok(val_data[1].to_string());
+                        }
                     }
+                    _ => debug!("Unsupported tag 0x{:02X} in Present_Value response", val_data[0]),
                 }
-                _ => return Ok(format!("Tag 0x{:02X}", val_data[0])),
             }
+            break;
         }
+        pos += 1;
     }
 
     Ok("N/A".to_string())
 }
 
-fn send_confirmed_request(
+async fn send_confirmed_request_async(
     socket: &UdpSocket,
     addr: SocketAddr,
     invoke_id: u8,
     service_choice: ConfirmedServiceChoice,
     service_data: &[u8],
+    tx_request: &tokio::sync::mpsc::Sender<(u8, tokio::sync::oneshot::Sender<Vec<u8>>)>
 ) -> Result<Vec<u8>> {
+    let (tx_response, rx_response) = tokio::sync::oneshot::channel();
+    tx_request.send((invoke_id, tx_response)).await.map_err(|_| anyhow!("Failed to register request"))?;
+
     let apdu = Apdu::ConfirmedRequest {
         segmented: false,
         more_follows: false,
@@ -234,31 +258,24 @@ fn send_confirmed_request(
 
     socket.send_to(&bvlc, addr)?;
 
-    let mut recv_buffer = [0u8; 1500];
-    let start = Instant::now();
-    while start.elapsed() < Duration::from_secs(3) {
-        if let Ok((len, src)) = socket.recv_from(&mut recv_buffer) {
-            if src == addr {
-                if let Some(data) = parse_confirmed_response(&recv_buffer[..len], invoke_id) {
-                    return Ok(data);
-                }
-            }
-        }
+    match tokio::time::timeout(Duration::from_secs(3), rx_response).await {
+        Ok(Ok(data)) => Ok(data),
+        Ok(Err(_)) => Err(anyhow!("Response channel closed")),
+        Err(_) => Err(anyhow!("Timeout waiting for response from {}", addr)),
     }
-    
-    Err(anyhow!("Timeout waiting for response from {}", addr))
 }
 
-fn parse_confirmed_response(data: &[u8], expected_invoke_id: u8) -> Option<Vec<u8>> {
+pub fn parse_confirmed_response(data: &[u8]) -> Option<(u8, Vec<u8>)> {
     if data.len() < 4 || data[0] != 0x81 { return None; }
     let npdu_start = match data[1] { 0x0A => 4, 0x04 => 10, _ => return None };
+    if data.len() <= npdu_start { return None; }
     let (_npdu, npdu_len) = Npdu::decode(&data[npdu_start..]).ok()?;
     let apdu = Apdu::decode(&data[npdu_start + npdu_len..]).ok()?;
 
     match apdu {
-        Apdu::ComplexAck { invoke_id, service_data, .. } if invoke_id == expected_invoke_id => Some(service_data),
-        Apdu::Error { invoke_id, error_class, error_code, .. } if invoke_id == expected_invoke_id => {
-            warn!("BACnet Error: class={}, code={}", error_class, error_code);
+        Apdu::ComplexAck { invoke_id, service_data, .. } => Some((invoke_id, service_data)),
+        Apdu::Error { invoke_id, error_class, error_code, .. } => {
+            warn!("BACnet Error for invoke {}: class={}, code={}", invoke_id, error_class, error_code);
             None
         }
         _ => None,
