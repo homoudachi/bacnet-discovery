@@ -1,0 +1,34 @@
+[2m2026-02-15T10:24:36.723109Z[0m [32m INFO[0m [2mbacnet_discovery[0m[2m:[0m Starting BACnet Discovery Tool
+[2m2026-02-15T10:24:36.723515Z[0m [34mDEBUG[0m [2mbacnet_discovery::network[0m[2m:[0m Creating shared socket on port 47808
+[2m2026-02-15T10:24:38.278450Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is broadcast
+[2m2026-02-15T10:24:38.278572Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 255.255.255.255:47808
+[2m2026-02-15T10:24:38.279578Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 192.168.1.255:47808
+[2m2026-02-15T10:24:38.279649Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:24:38.279798Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 172.21.255.255:47808
+[2m2026-02-15T10:24:38.279855Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 172.21.255.255:47808
+[2m2026-02-15T10:24:38.279996Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 172.22.255.255:47808
+[2m2026-02-15T10:24:38.280048Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 172.22.255.255:47808
+[2m2026-02-15T10:24:38.280170Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 172.20.255.255:47808
+[2m2026-02-15T10:24:38.280246Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 172.20.255.255:47808
+[2m2026-02-15T10:24:38.280400Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 172.18.255.255:47808
+[2m2026-02-15T10:24:38.280457Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 172.18.255.255:47808
+[2m2026-02-15T10:24:38.280568Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 172.17.255.255:47808
+[2m2026-02-15T10:24:38.280618Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 172.17.255.255:47808
+[2m2026-02-15T10:24:38.280758Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 172.19.255.255:47808
+[2m2026-02-15T10:24:38.280811Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 172.19.255.255:47808
+[2m2026-02-15T10:24:49.950402Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is broadcast
+[2m2026-02-15T10:24:49.950537Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 255.255.255.255:47808
+[2m2026-02-15T10:24:49.951597Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 192.168.1.255:47808
+[2m2026-02-15T10:24:49.951680Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:24:49.951837Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 172.21.255.255:47808
+[2m2026-02-15T10:24:49.951920Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 172.21.255.255:47808
+[2m2026-02-15T10:24:49.952026Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 172.22.255.255:47808
+[2m2026-02-15T10:24:49.952074Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 172.22.255.255:47808
+[2m2026-02-15T10:24:49.952175Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 172.20.255.255:47808
+[2m2026-02-15T10:24:49.952254Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 172.20.255.255:47808
+[2m2026-02-15T10:24:49.952396Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 172.18.255.255:47808
+[2m2026-02-15T10:24:49.952476Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 172.18.255.255:47808
+[2m2026-02-15T10:24:49.952594Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 172.17.255.255:47808
+[2m2026-02-15T10:24:49.952645Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 172.17.255.255:47808
+[2m2026-02-15T10:24:49.952756Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Sending directed Who-Is broadcast to 172.19.255.255:47808
+[2m2026-02-15T10:24:49.952807Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 172.19.255.255:47808

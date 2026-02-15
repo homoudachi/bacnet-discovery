@@ -8,7 +8,7 @@ use bacnet_rs::{
     },
     vendor::get_vendor_name,
 };
-use std::net::{SocketAddr, UdpSocket};
+use std::net::{SocketAddr, IpAddr, UdpSocket};
 use std::time::{Duration, Instant};
 use anyhow::{Result, anyhow};
 use tracing::{debug, warn};
@@ -25,7 +25,6 @@ pub struct DiscoveredDevice {
     pub last_seen: Instant,
 }
 
-/// Sends a Who-Is request to a specific destination.
 pub fn send_whois_to(socket: &UdpSocket, dest: SocketAddr) -> Result<()> {
     debug!("Encoding Who-Is request for {}", dest);
     let whois = WhoIsRequest::new();
@@ -53,29 +52,6 @@ pub fn send_whois_to(socket: &UdpSocket, dest: SocketAddr) -> Result<()> {
 
     socket.send_to(&bvlc, dest)?;
     
-    Ok(())
-}
-
-pub fn send_whois(socket: &UdpSocket) -> Result<()> {
-    debug!("Encoding Who-Is broadcast");
-    let broadcast_addr: SocketAddr = "255.255.255.255:47808".parse()?;
-    let _ = send_whois_to(socket, broadcast_addr);
-    
-    // Also try to send to all local interface broadcasts
-    if let Ok(addrs) = if_addrs::get_if_addrs() {
-        for iface in addrs {
-            if !iface.is_loopback() {
-                if let if_addrs::IfAddr::V4(v4) = iface.addr {
-                    if let Some(broadcast) = v4.broadcast {
-                        let addr = SocketAddr::new(broadcast.into(), 47808);
-                        debug!("Sending directed Who-Is broadcast to {}", addr);
-                        let _ = send_whois_to(socket, addr);
-                    }
-                }
-            }
-        }
-    }
-
     Ok(())
 }
 
@@ -181,10 +157,8 @@ pub fn read_device_objects(socket: &UdpSocket, addr: SocketAddr, device_id: u32)
 }
 
 pub fn read_present_value(socket: &UdpSocket, addr: SocketAddr, obj: ObjectIdentifier) -> Result<String> {
-    // Read Property 85 (Present_Value)
-    let mut service_data = vec![0x09, 0x55]; // Context tag 1 (propertyIdentifier), length 1, value 85
+    let service_data = vec![0x09, 0x55]; // Context tag 1 (propertyIdentifier), length 1, value 85
     
-    // Wrapped in ReadProperty (Service 12)
     let mut apdu_service_data = vec![0x0C]; // Context tag 0 (objectIdentifier), length 4
     let encoded_id = ((obj.object_type as u32) << 22) | (obj.instance & 0x3FFFFF);
     apdu_service_data.extend_from_slice(&encoded_id.to_be_bytes());
@@ -198,23 +172,22 @@ pub fn read_present_value(socket: &UdpSocket, addr: SocketAddr, obj: ObjectIdent
         &apdu_service_data
     )?;
 
-    // Parse the value from response (simplified)
-    if response.len() >= 3 && response[0] == 0x2E { // Opening tag 3 (propertyValue)
+    if response.len() >= 3 && response[0] == 0x2E {
         let val_data = &response[1..response.len()-1];
         if !val_data.is_empty() {
             match val_data[0] {
-                0x44 => { // Real
+                0x44 => {
                     if val_data.len() >= 5 {
                         let bytes = [val_data[1], val_data[2], val_data[3], val_data[4]];
                         return Ok(format!("{:.2}", f32::from_be_bytes(bytes)));
                     }
                 }
-                0x11 => { // Boolean
+                0x11 => {
                     if val_data.len() >= 2 {
                         return Ok(if val_data[1] != 0 { "Active".to_string() } else { "Inactive".to_string() });
                     }
                 }
-                0x21 => { // Unsigned
+                0x21 => {
                     if val_data.len() >= 2 {
                         return Ok(val_data[1].to_string());
                     }
@@ -305,4 +278,12 @@ fn encode_rpm_request_into(request: &ReadPropertyMultipleRequest, buffer: &mut V
         buffer.push(0x1F); // Context tag 1, closing tag
     }
     Ok(())
+}
+
+pub fn get_interface_broadcast(iface: &if_addrs::Interface) -> Option<SocketAddr> {
+    if let if_addrs::IfAddr::V4(v4) = &iface.addr {
+        v4.broadcast.map(|b| SocketAddr::new(IpAddr::V4(b), 47808))
+    } else {
+        None
+    }
 }

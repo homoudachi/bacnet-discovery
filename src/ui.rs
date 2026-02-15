@@ -19,6 +19,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
 
     // Title Block
     let title_text = match app.view_state {
+        ViewState::InterfaceSelect => "BACnet Discovery Tool - Select Interface".to_string(),
         ViewState::DeviceList => "BACnet Discovery Tool - Devices".to_string(),
         ViewState::ObjectList(id) => format!("BACnet Discovery Tool - Device {} Objects", id),
     };
@@ -29,6 +30,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     f.render_widget(title, chunks[0]);
 
     match app.view_state {
+        ViewState::InterfaceSelect => render_interface_list(f, chunks[1], app),
         ViewState::DeviceList => render_device_list(f, chunks[1], app),
         ViewState::ObjectList(id) => render_object_list(f, chunks[1], app, id),
     }
@@ -37,6 +39,21 @@ pub fn render(f: &mut Frame, app: &mut App) {
     let status = Paragraph::new(app.status_message.as_str())
         .block(Block::default().borders(Borders::ALL).title("Status"));
     f.render_widget(status, chunks[2]);
+}
+
+fn render_interface_list(f: &mut Frame, area: ratatui::layout::Rect, app: &mut App) {
+    let items: Vec<ListItem> = app.interfaces
+        .iter()
+        .map(|iface| {
+            ListItem::new(format!("{} ({})", iface.name, iface.addr.ip()))
+        })
+        .collect();
+
+    let list = List::new(items)
+        .block(Block::default().borders(Borders::ALL).title("Network Interfaces"))
+        .highlight_style(Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD))
+        .highlight_symbol(">> ");
+    f.render_stateful_widget(list, area, &mut app.interface_list_state);
 }
 
 fn render_device_list(f: &mut Frame, area: ratatui::layout::Rect, app: &mut App) {
@@ -58,7 +75,7 @@ fn render_device_list(f: &mut Frame, area: ratatui::layout::Rect, app: &mut App)
         .collect();
 
     let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("Devices"))
+        .block(Block::default().borders(Borders::ALL).title("Discovered Devices"))
         .highlight_style(Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD))
         .highlight_symbol(">> ");
     f.render_stateful_widget(list, chunks[0], &mut app.list_state);
