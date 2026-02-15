@@ -43,6 +43,8 @@ pub struct App {
     pub view_state: ViewState,
     /// Is a discovery scan currently active?
     pub is_scanning: bool,
+    /// Monotonic counter for confirmed requests
+    pub next_invoke_id: u8,
 }
 
 impl App {
@@ -64,7 +66,16 @@ impl App {
             status_message: "Select an interface and press 'Enter'".to_string(),
             view_state: ViewState::InterfaceSelect,
             is_scanning: false,
+            next_invoke_id: 1,
         }
+    }
+
+    /// Gets the next invoke ID and increments the counter
+    pub fn get_next_invoke_id(&mut self) -> u8 {
+        let id = self.next_invoke_id;
+        self.next_invoke_id = self.next_invoke_id.wrapping_add(1);
+        if self.next_invoke_id == 0 { self.next_invoke_id = 1; } // Avoid 0
+        id
     }
 
     pub fn next(&mut self) {

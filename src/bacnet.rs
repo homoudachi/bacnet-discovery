@@ -110,9 +110,10 @@ pub async fn read_device_objects(
     socket: &UdpSocket, 
     addr: SocketAddr, 
     device_id: u32,
+    invoke_id: u8,
     tx_request: &tokio::sync::mpsc::Sender<(u8, tokio::sync::oneshot::Sender<Vec<u8>>)>
 ) -> Result<Vec<BacnetObject>> {
-    info!("Reading object list for device {} at {}", device_id, addr);
+    info!("Reading object list for device {} at {} (Invoke ID: {})", device_id, addr, invoke_id);
     
     let device_obj = ObjectIdentifier::new(ObjectType::Device, device_id);
     let prop_ref = PropertyReference::new(76); // Object_List
@@ -125,7 +126,7 @@ pub async fn read_device_objects(
     let response = send_confirmed_request_async(
         socket, 
         addr, 
-        1, 
+        invoke_id, 
         ConfirmedServiceChoice::ReadPropertyMultiple, 
         &service_data,
         tx_request
@@ -168,9 +169,10 @@ pub async fn read_present_value(
     socket: &UdpSocket, 
     addr: SocketAddr, 
     obj: ObjectIdentifier,
+    invoke_id: u8,
     tx_request: &tokio::sync::mpsc::Sender<(u8, tokio::sync::oneshot::Sender<Vec<u8>>)>
 ) -> Result<String> {
-    debug!("Polling Present_Value for {:?}:{} at {}", obj.object_type, obj.instance, addr);
+    debug!("Polling Present_Value for {:?}:{} at {} (Invoke ID: {})", obj.object_type, obj.instance, addr, invoke_id);
     let service_data = vec![0x09, 0x55];
     
     let mut apdu_service_data = vec![0x0C];
@@ -181,15 +183,16 @@ pub async fn read_present_value(
     let response = send_confirmed_request_async(
         socket, 
         addr, 
-        2, 
+        invoke_id, 
         ConfirmedServiceChoice::ReadProperty, 
         &apdu_service_data,
         tx_request
     ).await?;
 
+    // Scan for any opening tag (lower 4 bits 0xE) followed by a value tag
     let mut pos = 0;
     while pos < response.len() {
-        if response[pos] == 0x3E {
+        if (response[pos] & 0x0F) == 0x0E {
             let val_data = &response[pos+1..];
             if !val_data.is_empty() {
                 match val_data[0] {
@@ -209,10 +212,14 @@ pub async fn read_present_value(
                             return Ok(val_data[1].to_string());
                         }
                     }
-                    _ => debug!("Unsupported tag 0x{:02X} in Present_Value response", val_data[0]),
+                    0x91 => {
+                        if val_data.len() >= 2 {
+                            return Ok(format!("State {}", val_data[1]));
+                        }
+                    }
+                    _ => debug!("Found tag 0x{:02X} inside opening tag 0x{:02X}", val_data[0], response[pos]),
                 }
             }
-            break;
         }
         pos += 1;
     }
@@ -258,10 +265,10 @@ async fn send_confirmed_request_async(
 
     socket.send_to(&bvlc, addr)?;
 
-    match tokio::time::timeout(Duration::from_secs(3), rx_response).await {
+    match tokio::time::timeout(Duration::from_secs(5), rx_response).await {
         Ok(Ok(data)) => Ok(data),
         Ok(Err(_)) => Err(anyhow!("Response channel closed")),
-        Err(_) => Err(anyhow!("Timeout waiting for response from {}", addr)),
+        Err(_) => Err(anyhow!("Timeout waiting for response from {} (Invoke {})", addr, invoke_id)),
     }
 }
 

@@ -1,16 +1,4 @@
-[2m2026-02-15T10:40:09.257933Z[0m [32m INFO[0m [2mbacnet_discovery[0m[2m:[0m Starting BACnet Discovery Tool
-[2m2026-02-15T10:40:10.821798Z[0m [34mDEBUG[0m [2mbacnet_discovery::network[0m[2m:[0m Creating shared socket on port 47808
-[2m2026-02-15T10:40:13.594968Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:40:21.178020Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:40:26.134290Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:40:27.285947Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:40:33.698335Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:40:35.786429Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:44:07.431710Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:44:09.120585Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:44:10.043273Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:44:29.715358Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:44:30.913394Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:44:32.863339Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:44:36.369426Z[0m [32m INFO[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Reading object list for device 1223232 at 192.168.1.174:47808
-[2m2026-02-15T10:44:42.713302Z[0m [32m INFO[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Reading object list for device 1223232 at 192.168.1.174:47808
+[2m2026-02-15T10:49:29.277040Z[0m [32m INFO[0m [2mbacnet_discovery[0m[2m:[0m Starting BACnet Discovery Tool
+[2m2026-02-15T10:49:30.564522Z[0m [34mDEBUG[0m [2mbacnet_discovery::network[0m[2m:[0m Creating shared socket on port 47808
+[2m2026-02-15T10:49:31.334097Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:49:35.524817Z[0m [32m INFO[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Reading object list for device 1223232 at 192.168.1.174:47808
