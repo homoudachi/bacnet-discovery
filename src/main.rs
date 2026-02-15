@@ -1,8 +1,3 @@
-mod app;
-mod bacnet;
-mod network;
-mod ui;
-
 use anyhow::Result;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
@@ -14,34 +9,31 @@ use std::{io, net::UdpSocket, time::{Duration, Instant}};
 use tokio::sync::mpsc;
 use tracing::{info, error};
 
-use crate::app::App;
-use crate::network::create_shared_socket;
-use crate::bacnet::{send_whois, process_response};
+use bacnet_discovery::app::App;
+use bacnet_discovery::network::create_shared_socket;
+use bacnet_discovery::bacnet::{send_whois, process_response};
+use bacnet_discovery::ui;
 
 enum AppEvent {
     Input(Event),
     Tick,
-    DeviceDiscovered(bacnet::DiscoveredDevice),
+    DeviceDiscovered(bacnet_discovery::bacnet::DiscoveredDevice),
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing
     tracing_subscriber::fmt::init();
     info!("Starting BACnet Discovery Tool");
 
-    // Terminal setup
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // App state and communication
     let mut app = App::new();
     let (tx, mut rx) = mpsc::channel(100);
 
-    // Event Loop: Input handling
     let tx_input = tx.clone();
     tokio::spawn(async move {
         loop {
@@ -54,7 +46,6 @@ async fn main() -> Result<()> {
         }
     });
 
-    // Event Loop: BACnet Discovery
     let tx_bacnet = tx.clone();
     tokio::spawn(async move {
         let socket = match create_shared_socket(47808) {
@@ -66,7 +57,6 @@ async fn main() -> Result<()> {
         };
 
         loop {
-            // Periodic Who-Is broadcast
             if let Err(e) = send_whois(&socket) {
                 error!("Failed to send Who-Is: {}", e);
             }
@@ -74,7 +64,6 @@ async fn main() -> Result<()> {
             let start_listen = Instant::now();
             let mut buf = [0u8; 1500];
             
-            // Listen for 3 seconds before re-broadcasting
             while start_listen.elapsed() < Duration::from_secs(3) {
                 match socket.recv_from(&mut buf) {
                     Ok((len, addr)) => {
@@ -83,7 +72,6 @@ async fn main() -> Result<()> {
                         }
                     }
                     Err(ref e) if e.kind() == io::ErrorKind::WouldBlock || e.kind() == io::ErrorKind::TimedOut => {
-                        // Just a timeout, yield to other tasks
                         tokio::task::yield_now().await;
                     }
                     Err(e) => {
@@ -94,7 +82,6 @@ async fn main() -> Result<()> {
         }
     });
 
-    // Main UI loop
     loop {
         terminal.draw(|f| ui::render(f, &mut app))?;
 
@@ -118,7 +105,6 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Restore terminal
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
     terminal.show_cursor()?;

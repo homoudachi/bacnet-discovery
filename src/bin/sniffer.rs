@@ -1,19 +1,8 @@
-use std::net::UdpSocket;
-use socket2::{Socket, Domain, Type, Protocol};
-use std::net::SocketAddr;
 use bacnet_rs::{
     network::Npdu,
     service::UnconfirmedServiceChoice,
 };
-
-fn create_shared_socket(port: u16) -> std::io::Result<UdpSocket> {
-    let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
-    socket.set_reuse_address(true)?;
-    #[cfg(target_os = "linux")]
-    socket.set_reuse_port(true)?;
-    socket.bind(&format!("0.0.0.0:{}", port).parse::<SocketAddr>().unwrap().into())?;
-    Ok(socket.into())
-}
+use bacnet_discovery::network::create_shared_socket;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("BACnet Network Sniffer (Shared Mode)");

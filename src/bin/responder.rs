@@ -3,24 +3,11 @@ use bacnet_rs::{
     object::Device,
     service::{IAmRequest, UnconfirmedServiceChoice, WhoIsRequest},
 };
-use socket2::{Domain, Protocol, Socket, Type};
+use bacnet_discovery::network::create_shared_socket;
 use std::{
-    net::{SocketAddr, UdpSocket},
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
-    time::Duration,
 };
-
-fn create_shared_socket(port: u16) -> std::io::Result<UdpSocket> {
-    let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
-    socket.set_reuse_address(true)?;
-    #[cfg(target_os = "linux")]
-    socket.set_reuse_port(true)?;
-    socket.bind(&format!("0.0.0.0:{}", port).parse::<SocketAddr>().unwrap().into())?;
-    socket.set_broadcast(true)?;
-    socket.set_read_timeout(Some(Duration::from_millis(100)))?;
-    Ok(socket.into())
-}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("BACnet Responder Device (Shared Mode)");
