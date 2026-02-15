@@ -1,3 +1,8 @@
+mod app;
+mod bacnet;
+mod network;
+mod ui;
+
 use anyhow::Result;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
@@ -5,19 +10,20 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
-use std::{io, net::UdpSocket, time::{Duration, Instant}};
+use std::{io, net::UdpSocket, sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tracing::{info, error};
 
-use bacnet_discovery::app::App;
-use bacnet_discovery::network::create_shared_socket;
-use bacnet_discovery::bacnet::{send_whois, process_response};
-use bacnet_discovery::ui;
+use crate::app::{App, ViewState};
+use crate::network::create_shared_socket;
+use crate::bacnet::{send_whois, process_response, read_device_objects};
 
 enum AppEvent {
     Input(Event),
     Tick,
-    DeviceDiscovered(bacnet_discovery::bacnet::DiscoveredDevice),
+    DeviceDiscovered(bacnet::DiscoveredDevice),
+    PointsDiscovered(u32, Vec<app::BacnetObject>),
+    StatusUpdate(String),
 }
 
 #[tokio::main]
@@ -34,6 +40,10 @@ async fn main() -> Result<()> {
     let mut app = App::new();
     let (tx, mut rx) = mpsc::channel(100);
 
+    let socket = Arc::new(create_shared_socket(47808).unwrap_or_else(|_| {
+        UdpSocket::bind("0.0.0.0:0").expect("Failed to bind")
+    }));
+
     let tx_input = tx.clone();
     tokio::spawn(async move {
         loop {
@@ -46,37 +56,19 @@ async fn main() -> Result<()> {
         }
     });
 
-    let tx_bacnet = tx.clone();
+    let tx_recv = tx.clone();
+    let socket_recv = Arc::clone(&socket);
     tokio::spawn(async move {
-        let socket = match create_shared_socket(47808) {
-            Ok(s) => s,
-            Err(e) => {
-                error!("Failed to bind to shared port 47808: {}. Falling back to random port.", e);
-                UdpSocket::bind("0.0.0.0:0").expect("Failed to bind even to a random port")
-            }
-        };
-
+        let mut buf = [0u8; 1500];
         loop {
-            if let Err(e) = send_whois(&socket) {
-                error!("Failed to send Who-Is: {}", e);
-            }
-
-            let start_listen = Instant::now();
-            let mut buf = [0u8; 1500];
-            
-            while start_listen.elapsed() < Duration::from_secs(3) {
-                match socket.recv_from(&mut buf) {
-                    Ok((len, addr)) => {
-                        if let Some(device) = process_response(&buf[..len], addr) {
-                            let _ = tx_bacnet.send(AppEvent::DeviceDiscovered(device)).await;
-                        }
+            match socket_recv.recv_from(&mut buf) {
+                Ok((len, addr)) => {
+                    if let Some(device) = process_response(&buf[..len], addr) {
+                        let _ = tx_recv.send(AppEvent::DeviceDiscovered(device)).await;
                     }
-                    Err(ref e) if e.kind() == io::ErrorKind::WouldBlock || e.kind() == io::ErrorKind::TimedOut => {
-                        tokio::task::yield_now().await;
-                    }
-                    Err(e) => {
-                        error!("Socket receive error: {}", e);
-                    }
+                }
+                Err(_) => {
+                    tokio::task::yield_now().await;
                 }
             }
         }
@@ -89,7 +81,43 @@ async fn main() -> Result<()> {
             match event {
                 AppEvent::Input(Event::Key(key)) => match key.code {
                     KeyCode::Char('q') => break,
-                    KeyCode::Char('r') => app.clear(),
+                    KeyCode::Char('d') => {
+                        match app.view_state {
+                            ViewState::DeviceList => {
+                                app.clear();
+                                let socket_send = Arc::clone(&socket);
+                                let tx_status = tx.clone();
+                                tokio::spawn(async move {
+                                    if let Err(e) = send_whois(&socket_send) {
+                                        error!("Discovery failed: {}", e);
+                                    }
+                                    tokio::time::sleep(Duration::from_secs(3)).await;
+                                    let _ = tx_status.send(AppEvent::StatusUpdate("Scan complete.".to_string())).await;
+                                });
+                            }
+                            ViewState::ObjectList(device_id) => {
+                                let devices = app.devices.lock().unwrap();
+                                if let Some(device) = devices.get(&device_id).cloned() {
+                                    app.status_message = format!("Discovering points for device {}...", device_id);
+                                    let socket_points = Arc::clone(&socket);
+                                    let tx_points = tx.clone();
+                                    tokio::spawn(async move {
+                                        match read_device_objects(&socket_points, device.address, device_id) {
+                                            Ok(points) => {
+                                                let _ = tx_points.send(AppEvent::PointsDiscovered(device_id, points)).await;
+                                            }
+                                            Err(e) => {
+                                                error!("Point discovery failed: {}", e);
+                                                let _ = tx_points.send(AppEvent::StatusUpdate(format!("Error: {}", e))).await;
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::Enter => app.enter_device(),
+                    KeyCode::Esc => app.exit_device(),
                     KeyCode::Down => app.next(),
                     KeyCode::Up => app.previous(),
                     _ => {}
@@ -98,8 +126,17 @@ async fn main() -> Result<()> {
                     let mut devices = app.devices.lock().unwrap();
                     let id = device.device_id;
                     devices.insert(id, device);
-                    app.status_message = format!("Found {} devices. 'r' to refresh, 'q' to quit", devices.len());
+                    app.status_message = format!("Found {} devices. Press 'Enter' to view points.", devices.len());
                 }
+                AppEvent::PointsDiscovered(device_id, points) => {
+                    let mut objects = app.device_objects.lock().unwrap();
+                    objects.insert(device_id, points);
+                    app.status_message = format!("Discovered points. Polling active.");
+                }
+                AppEvent::StatusUpdate(msg) => {
+                    app.status_message = msg;
+                }
+                AppEvent::Tick => {}
                 _ => {}
             }
         }
