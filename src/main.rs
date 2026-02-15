@@ -29,7 +29,13 @@ enum AppEvent {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::fmt::init();
+    // Initialize tracing with file logging
+    let file_appender = std::fs::File::create("bacnet-discovery.log")?;
+    tracing_subscriber::fmt()
+        .with_writer(Arc::new(file_appender))
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
+    
     info!("Starting BACnet Discovery Tool");
 
     enable_raw_mode()?;

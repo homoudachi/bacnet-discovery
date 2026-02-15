@@ -25,8 +25,9 @@ pub struct DiscoveredDevice {
     pub last_seen: Instant,
 }
 
-pub fn send_whois(socket: &UdpSocket) -> Result<()> {
-    debug!("Encoding Who-Is request");
+/// Sends a Who-Is request to a specific destination.
+pub fn send_whois_to(socket: &UdpSocket, dest: SocketAddr) -> Result<()> {
+    debug!("Encoding Who-Is request for {}", dest);
     let whois = WhoIsRequest::new();
     let mut service_data = Vec::new();
     whois.encode(&mut service_data)?;
@@ -40,15 +41,41 @@ pub fn send_whois(socket: &UdpSocket) -> Result<()> {
     let mut message = npdu_buffer;
     message.extend_from_slice(&apdu);
 
-    let mut bvlc = vec![0x81, 0x0B, 0x00, 0x00];
+    // Determine BVLC function based on destination
+    let is_broadcast = dest.ip().is_unspecified() || dest.ip().is_multicast() || dest.ip().to_string().ends_with(".255") || dest.ip().to_string() == "255.255.255.255";
+    let bvlc_func = if is_broadcast { 0x0B } else { 0x0A };
+
+    let mut bvlc = vec![0x81, bvlc_func, 0x00, 0x00];
     bvlc.extend_from_slice(&message);
     let total_len = bvlc.len() as u16;
     bvlc[2] = (total_len >> 8) as u8;
     bvlc[3] = (total_len & 0xFF) as u8;
 
-    let broadcast_addr: SocketAddr = "255.255.255.255:47808".parse()?;
-    socket.send_to(&bvlc, broadcast_addr)?;
+    socket.send_to(&bvlc, dest)?;
     
+    Ok(())
+}
+
+pub fn send_whois(socket: &UdpSocket) -> Result<()> {
+    debug!("Encoding Who-Is broadcast");
+    let broadcast_addr: SocketAddr = "255.255.255.255:47808".parse()?;
+    let _ = send_whois_to(socket, broadcast_addr);
+    
+    // Also try to send to all local interface broadcasts
+    if let Ok(addrs) = if_addrs::get_if_addrs() {
+        for iface in addrs {
+            if !iface.is_loopback() {
+                if let if_addrs::IfAddr::V4(v4) = iface.addr {
+                    if let Some(broadcast) = v4.broadcast {
+                        let addr = SocketAddr::new(broadcast.into(), 47808);
+                        debug!("Sending directed Who-Is broadcast to {}", addr);
+                        let _ = send_whois_to(socket, addr);
+                    }
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 
