@@ -8,6 +8,7 @@ use bacnet_discovery::network::create_shared_socket;
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
+    net::SocketAddr,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -34,9 +35,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             
             if let Some(whois) = process_whois(data) {
                 if whois.matches(device_id) {
-                    println!("Received Who-Is from {} -> Responding with I-Am", source);
+                    println!("Received Who-Is from {} -> Broadcasting I-Am", source);
                     if let Ok(response) = create_iam_response(&device) {
-                        let _ = socket.send_to(&response, source);
+                        // Send to broadcast address so all shared sockets see it
+                        let broadcast: SocketAddr = "255.255.255.255:47808".parse().unwrap();
+                        let _ = socket.send_to(&response, broadcast);
                     }
                 }
             } else if let Some((invoke_id, service_choice, service_data)) = process_confirmed_request(data) {
@@ -179,7 +182,9 @@ fn create_iam_response(device: &Device) -> Result<Vec<u8>, Box<dyn std::error::E
     let npdu = Npdu::new();
     let mut apdu = vec![0x10, UnconfirmedServiceChoice::IAm as u8];
     apdu.extend_from_slice(&iam_buffer);
-    let mut bvlc = vec![0x81, 0x0A, 0x00, 0x00];
+    
+    // Change to Original-Broadcast-NPDU (0x0B)
+    let mut bvlc = vec![0x81, 0x0B, 0x00, 0x00];
     bvlc.extend_from_slice(&npdu.encode());
     bvlc.extend_from_slice(&apdu);
     let total_len = bvlc.len() as u16;

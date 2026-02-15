@@ -1,15 +1,16 @@
-[2m2026-02-15T10:28:52.008359Z[0m [32m INFO[0m [2mbacnet_discovery[0m[2m:[0m Starting BACnet Discovery Tool
-[2m2026-02-15T10:28:54.969206Z[0m [34mDEBUG[0m [2mbacnet_discovery::network[0m[2m:[0m Creating shared socket on port 47808
-[2m2026-02-15T10:28:54.969667Z[0m [32m INFO[0m [2mbacnet_discovery[0m[2m:[0m Interface wlp108s0 selected, socket bound to 192.168.1.174
-[2m2026-02-15T10:28:56.930268Z[0m [32m INFO[0m [2mbacnet_discovery[0m[2m:[0m Sending Who-Is to 192.168.1.255:47808
-[2m2026-02-15T10:28:56.930398Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:29:32.519273Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Reading object list for device 4194303
-[2m2026-02-15T10:29:35.539310Z[0m [31mERROR[0m [2mbacnet_discovery[0m[2m:[0m Point discovery failed: Timeout waiting for response from 192.168.1.106:47808
-[2m2026-02-15T10:29:49.048942Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Reading object list for device 4194303
-[2m2026-02-15T10:29:52.067298Z[0m [31mERROR[0m [2mbacnet_discovery[0m[2m:[0m Point discovery failed: Timeout waiting for response from 192.168.1.106:47808
-[2m2026-02-15T10:29:56.046152Z[0m [34mDEBUG[0m [2mbacnet_discovery::network[0m[2m:[0m Creating shared socket on port 47808
-[2m2026-02-15T10:29:56.046510Z[0m [32m INFO[0m [2mbacnet_discovery[0m[2m:[0m Interface wlp108s0 selected, socket bound to 192.168.1.174
-[2m2026-02-15T10:29:59.331835Z[0m [32m INFO[0m [2mbacnet_discovery[0m[2m:[0m Sending Who-Is to 192.168.1.255:47808
-[2m2026-02-15T10:29:59.331985Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
-[2m2026-02-15T10:30:06.685880Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Reading object list for device 12345
-[2m2026-02-15T10:30:09.699892Z[0m [31mERROR[0m [2mbacnet_discovery[0m[2m:[0m Point discovery failed: Timeout waiting for response from 192.168.1.174:47808
+[2m2026-02-15T10:40:09.257933Z[0m [32m INFO[0m [2mbacnet_discovery[0m[2m:[0m Starting BACnet Discovery Tool
+[2m2026-02-15T10:40:10.821798Z[0m [34mDEBUG[0m [2mbacnet_discovery::network[0m[2m:[0m Creating shared socket on port 47808
+[2m2026-02-15T10:40:13.594968Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:40:21.178020Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:40:26.134290Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:40:27.285947Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:40:33.698335Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:40:35.786429Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:44:07.431710Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:44:09.120585Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:44:10.043273Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:44:29.715358Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:44:30.913394Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:44:32.863339Z[0m [34mDEBUG[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Encoding Who-Is request for 192.168.1.255:47808
+[2m2026-02-15T10:44:36.369426Z[0m [32m INFO[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Reading object list for device 1223232 at 192.168.1.174:47808
+[2m2026-02-15T10:44:42.713302Z[0m [32m INFO[0m [2mbacnet_discovery::bacnet[0m[2m:[0m Reading object list for device 1223232 at 192.168.1.174:47808
